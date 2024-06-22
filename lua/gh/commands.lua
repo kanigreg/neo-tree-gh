@@ -5,6 +5,7 @@ local manager = require("neo-tree.sources.manager")
 local M = {}
 
 M.refresh = function(state)
+  state.cached = false
   manager.refresh("gh", state)
 end
 

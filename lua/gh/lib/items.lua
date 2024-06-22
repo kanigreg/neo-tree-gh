@@ -4,24 +4,24 @@ local renderer = require("neo-tree.ui.renderer")
 
 local M = {}
 
-local pr_files = function()
-  if M.pr_files ~= nil then
+local pr_files = function(state)
+  if state.cached == true then
     return M.pr_files
   end
 
   local cmd = { "gh", "pr", "view", "--json", "files" }
-  local on_exit = function(obj)
-    if obj.code ~= 0 then
-      log.error("Neotree: Can't load PR info from GitHub")
-      return
-    end
+  local system_obj = vim.system(cmd, { text = true })
+  local complete = system_obj:wait(1000)
 
-    local response = vim.json.decode(obj.stdout)
-    M.pr_files = response.files
+  if complete.code ~= 0 then
+    log.error("Neotree: Can't load PR info from GitHub")
+    return {}
   end
 
-  vim.system(cmd, { text = true }, on_exit)
-  return {}
+  local response = vim.json.decode(complete.stdout)
+  M.pr_files = response.files
+  state.cached = true
+  return M.pr_files
 end
 
 M.get_pr_files = function(state)
@@ -39,8 +39,8 @@ M.get_pr_files = function(state)
   context.folders[root.path] = root
 
   -- Create nodes
-  local paths = pr_files()
-  for _, file in ipairs(paths) do
+  local files = pr_files(state)
+  for _, file in ipairs(files) do
     local success, item = pcall(file_items.create_item, context, root.path .. "/" .. file.path, "file")
     if success then
       item.extra = {
