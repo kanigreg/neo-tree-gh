@@ -3,6 +3,7 @@
 
 local vim = vim
 local gh_files = require("gh.lib.items")
+local defaults = require("gh.defaults")
 
 local M = {
   name = "gh",
@@ -26,5 +27,7 @@ end
 M.setup = function()
   require("neo-tree.utils").register_stat_provider("pr_file_stats", M.get_node_stat)
 end
+
+M.default_config = defaults
 
 return M
