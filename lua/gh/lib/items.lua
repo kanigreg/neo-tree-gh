@@ -2,7 +2,9 @@ local file_items = require("neo-tree.sources.common.file-items")
 local log = require("neo-tree.log")
 local renderer = require("neo-tree.ui.renderer")
 
-local M = {}
+local M = {
+  pr = {},
+}
 
 local fill_with_comment_info = function(comments)
   for path, comment_nodes in pairs(comments) do
@@ -13,7 +15,7 @@ local fill_with_comment_info = function(comments)
 end
 
 local load_pr_comments = function(state)
-  if state.cached == true or M.pr == nil then
+  if state.cached == true or M.pr.files == nil then
     return
   end
 
@@ -75,8 +77,9 @@ M.get_pr_files = function(state)
   load_pr_comments(state)
   state.cached = true
 
+  local files = M.pr.files or {}
   -- Create nodes
-  for path, file in pairs(M.pr.files) do
+  for path, file in pairs(files) do
     local success, item = pcall(file_items.create_item, context, root.path .. "/" .. path, "file")
     if success then
       item.extra = {

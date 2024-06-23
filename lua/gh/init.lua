@@ -10,11 +10,12 @@ local M = {
 }
 
 M.get_node_stat = function(node)
-  return {
-    birthtime = { sec = 1692617750 },
-    mtime = { sec = 1692617750 },
-    size = 11453,
-  }
+  local stat = {}
+  if node.extra then
+    stat.added = node.extra.added_count
+    stat.deleted = node.extra.deleted.count
+  end
+  return stat
 end
 
 M.navigate = function(state, path)
