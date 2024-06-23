@@ -4,24 +4,56 @@ local renderer = require("neo-tree.ui.renderer")
 
 local M = {}
 
-local pr_files = function(state)
-  if state.cached == true then
-    return M.pr_files
+local fill_with_comment_info = function(comments)
+  for path, comment_nodes in pairs(comments) do
+    if M.pr.files[path] then
+      M.pr.files[path].comments = comment_nodes
+    end
+  end
+end
+
+local load_pr_comments = function(state)
+  if state.cached == true or M.pr == nil then
+    return
   end
 
-  local cmd = { "gh", "pr", "view", "--json", "files" }
-  local system_obj = vim.system(cmd, { text = true })
-  local complete = system_obj:wait(1000)
+  local jq = [[ 
+    reduce .[] as {$path, $body, $line} 
+      (null; .[$path] += [{$body, $line}])
+  ]]
+  local cmd = { "gh", "api", "repos/{owner}/{repo}/pulls/" .. M.pr.number .. "/comments", "--jq", jq }
+  local complete = vim.system(cmd, { text = true }):wait(2000)
 
   if complete.code ~= 0 then
-    log.error("Neotree: Can't load PR info from GitHub")
-    return {}
+    log.error("Neotree: Can't load PR comments from repo")
+    return
   end
 
-  local response = vim.json.decode(complete.stdout)
-  M.pr_files = response.files
-  state.cached = true
-  return M.pr_files
+  local comments = vim.json.decode(complete.stdout)
+  fill_with_comment_info(comments)
+end
+
+local load_pr_files = function(state)
+  if state.cached == true then
+    return
+  end
+
+  local jq = [[ 
+    {
+      number: .number, 
+      files: reduce .files[] as {$path, $additions, $deletions} 
+        (null; .[$path] = {$additions, $deletions})
+    } 
+  ]]
+  local cmd = { "gh", "pr", "view", "--json", "files,number", "--jq", jq }
+  local complete = vim.system(cmd, { text = true }):wait(1000)
+
+  if complete.code ~= 0 then
+    log.error("Neotree: Can't load PR info from repo")
+    return
+  end
+
+  M.pr = vim.json.decode(complete.stdout)
 end
 
 M.get_pr_files = function(state)
@@ -38,12 +70,17 @@ M.get_pr_files = function(state)
   root.search_pattern = state.search_pattern
   context.folders[root.path] = root
 
+  -- Load info from remote repository
+  load_pr_files(state)
+  load_pr_comments(state)
+  state.cached = true
+
   -- Create nodes
-  local files = pr_files(state)
-  for _, file in ipairs(files) do
-    local success, item = pcall(file_items.create_item, context, root.path .. "/" .. file.path, "file")
+  for path, file in pairs(M.pr.files) do
+    local success, item = pcall(file_items.create_item, context, root.path .. "/" .. path, "file")
     if success then
       item.extra = {
+        comments = file.comments,
         added_count = file.additions,
         deleted_count = file.deletions,
       }

@@ -11,9 +11,27 @@
 --    highlight: The highlight group to apply to this text.
 
 local common = require("neo-tree.sources.common.components")
+local highlights = require("neo-tree.ui.highlights")
 
--- local M = {}
---
--- return vim.tbl_deep_extend("force", common, M)
+local M = {}
 
-return common
+M.name = function(config, node)
+  local highlight = config.highlight or highlights.FILE_NAME
+  local text
+  if node.type == "directory" then
+    highlight = highlights.DIRECTORY_NAME
+  end
+  if node:get_depth() == 1 then
+    highlight = highlights.ROOT_NAME
+  end
+  if node.type == "file" and node.extra.comments ~= nil then
+    highlight = highlights.GIT_CONFLICT
+    text = node.name .. " #" .. #node.extra.comments
+  end
+  return {
+    text = text or node.name,
+    highlight = highlight,
+  }
+end
+
+return vim.tbl_deep_extend("force", common, M)
