@@ -21,7 +21,7 @@ local load_pr_comments = function(state)
 
   local jq = [[ 
     reduce .[] as {$path, $body, $line} 
-      (null; .[$path] += [{$body, $line}])
+      ({}; .[$path] += [{$body, $line}])
   ]]
   local cmd = { "gh", "api", "repos/{owner}/{repo}/pulls/" .. M.pr.number .. "/comments", "--jq", jq }
   local complete = vim.system(cmd, { text = true }):wait(2000)
@@ -44,7 +44,7 @@ local load_pr_files = function(state)
     {
       number: .number, 
       files: reduce .files[] as {$path, $additions, $deletions} 
-        (null; .[$path] = {$additions, $deletions})
+        ({}; .[$path] = {$additions, $deletions})
     } 
   ]]
   local cmd = { "gh", "pr", "view", "--json", "files,number", "--jq", jq }
